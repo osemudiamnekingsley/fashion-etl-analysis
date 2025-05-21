@@ -1,0 +1,64 @@
+id: revenue
+namespace: project_fashion
+
+inputs:
+  - id: revenue_type
+    type: SELECT
+    displayName: Select Revenue type
+    values: [customers, products, stores, employees]
+    defaults: customers
+
+tasks:
+  - id: submit_job
+    type: io.kestra.plugin.gcp.dataproc.batches.PySparkSubmit
+    peripherals:
+      sparkHistoryServer:
+        dataprocCluster: "revenue-job" # Already created cluster name
+    projectId: 'my-de-journey'
+    mainPythonFileUri: "gs://{{ kv('GCP_BUCKET_NAME') }}/script/spark/[{{inputs.revenue_type}} ~ '_revenue.py']"
+    name: "rev-job"
+    region: "africa-south1"
+    args:
+      - "--inputs=my-de-journey.Fashion_retail_dataset.{{inputs.revenue_type}}"
+      - "--output=my-de-journey.Fashion_retail_dataset.{{inputs.revenue_type}}_revenue"
+  
+
+  - id: purge_files
+    type: io.kestra.plugin.core.storage.PurgeCurrentExecutionFiles
+    disabled: false
+    
+  pluginDefaults:
+    - type: io.kestra.plugin.gcp
+      values:
+        serviceAccount: "{{kv('jsonkey')}}"
+        projectId: "{{kv('GCP_PROJECT_ID')}}"
+        location: "{{kv('GCP_LOCATION')}}"
+        bucket: "{{kv('GCP_BUCKET_NAME')}}"
+        
+   # Triggers that run on the 2nd of every month     
+  triggers:
+  - id: customers_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 7 2 * *"
+    inputs:
+      fashion: customers
+
+  - id: products_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 8 2 * *"
+    inputs:
+      fashion: products
+      
+ - id: stores_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 9 2 * *"
+    inputs:
+      fashion: stores
+      
+- id: employees_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 10 2 * *"
+
+- id: transactions_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 11 2 * *"
